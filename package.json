@@ -1,0 +1,22 @@
+{
+  "name": "node-qlight",
+  "fullname": "QLight tower node module",
+  "version": "0.0.1",
+  "description": "Node module for QLight Tower",
+  "private": true,
+  "main": "node-qlight.js",
+  "keywords": [
+    "qlight"
+  ],
+  "author": {
+    "name": "Virag Gada",
+    "email": "virag.gada@colorado.edu"
+  },
+  "devDependencies": {
+    "bunyan": "1.8.1"
+  },
+  "dependencies": {
+    "async": "2.5.0",
+    "usb":"1.2.0"
+  }
+}

@@ -1,0 +1,98 @@
+/*************************************************
+* Author - Virag Gada
+* File - node-qlight.js
+* Description - Main file to initialize and
+*               control the QLight Tower
+*************************************************/
+
+var async = require('async');
+var usb = require('usb');
+
+// const and variable definition for QLight Tower
+var qLightDevice;
+var endpoints, inEndpoint, outEndpoint;
+var lights = [];
+
+lights['red'] = [];
+lights['red']['on']=[0x57,0x0,0x1,0x64,0x64,0x64,0x64,0x64,0x40,0x0,0x54,0xf3,0x0,0x0,0x0,0x0];
+lights['red']['blink']=[0x57,0x0,0x2,0x64,0x64,0x64,0x64,0x64,0x40,0x0,0x54,0xf3,0x0,0x0,0x0,0x0];
+lights['red']['off']=[0x57,0x0,0x0,0x64,0x64,0x64,0x64,0x64,0x40,0x0,0x54,0xf3,0x0,0x0,0x0,0x0];
+
+lights['yellow'] = [];
+lights['yellow']['on']=[0x57,0x0,0x64,0x1,0x64,0x64,0x64,0x64,0x40,0x0,0x54,0xf3,0x0,0x0,0x0,0x0];
+lights['yellow']['blink']=[0x57,0x0,0x64,0x2,0x64,0x64,0x64,0x64,0x40,0x0,0x54,0xf3,0x0,0x0,0x0,0x0];
+lights['yellow']['off']=[0x57,0x0,0x64,0x0,0x64,0x64,0x64,0x64,0x40,0x0,0x54,0xf3,0x0,0x0,0x0,0x0];
+
+lights['green'] = [];
+lights['green']['on']=[0x57,0x0,0x64,0x64,0x1,0x64,0x64,0x64,0x40,0x0,0x54,0xf3,0x0,0x0,0x0,0x0];
+lights['green']['blink']=[0x57,0x0,0x64,0x64,0x2,0x64,0x64,0x64,0x40,0x0,0x54,0xf3,0x0,0x0,0x0,0x0];
+lights['green']['off']=[0x57,0x0,0x64,0x64,0x0,0x64,0x64,0x64,0x40,0x0,0x54,0xf3,0x0,0x0,0x0,0x0];
+
+lights['all'] = [];
+lights['all']['on']=[0x57,0x0,0x1,0x1,0x1,0x64,0x64,0x64,0x40,0x0,0x54,0xf3,0x0,0x0,0x0,0x0];
+lights['all']['blink']=[0x57,0x0,0x2,0x2,0x2,0x64,0x64,0x64,0x40,0x0,0x54,0xf3,0x0,0x0,0x0,0x0];
+lights['all']['off']=[0x57,0x0,0x0,0x0,0x0,0x64,0x64,0x64,0x40,0x0,0x54,0xf3,0x0,0x0,0x0,0x0];
+
+var qlight = function () {};
+
+// initialize the device based on the vendor and product id
+// also since we want to write to the device claim the interface
+// if kernel has the device driver attached we nedd to detach it before claiming
+qlight.prototype.init = function (vendorId,productId){
+    var check;
+    async.series([
+        function(callback){
+            qLightDevice = usb.findByIds(vendorId,productId);// (0x04d8,0xe73c)
+            if(qLightDevice === undefined){// Check if QLight Tower is connected to the device
+                check = -1;
+            }else{
+                check = 0; 
+                qLightDevice.open();
+                endpoints = qLightDevice.interfaces[0].endpoints;
+                inEndpoint = endpoints[0];
+                outEndpoint = endpoints[1];
+            }
+            callback(null);
+        },
+        function(callback){
+            if(check == 0){
+                if(qLightDevice.interfaces[0].isKernelDriverActive()){ // If kernel is attached to the device detach it 
+                    // Kernel driver is active
+                    qLightDevice.interfaces[0].detachKernelDriver()
+                    // Kernel driver detached
+                }
+                qLightDevice.interfaces[0].claim();
+            }
+            callback(null);
+        }
+    ]);
+    return check;
+}
+
+// call this function with string values of color and action to control the qlight tower
+qlight.prototype.control = function (color,state){
+    outEndpoint.transfer(lights[color][state],function(error){
+        if(error){
+           return error; // return errors
+        }
+    })
+    return 0;
+}
+
+// To make all light's in the light tower blink for time msec
+qlight.prototype.blink = function(time){
+    qlight.prototype.control('all','on');
+    setTimeout(function(){qlight.prototype.control('all','off');},time);
+}
+
+// To clear all light's
+qlight.prototype.clear = function(){
+    return qlight.prototype.control('all','off');
+}
+
+// close the usb interface
+qlight.prototype.close = function(){
+    qLightDevice.close();
+}
+
+module.exports = qlight;
